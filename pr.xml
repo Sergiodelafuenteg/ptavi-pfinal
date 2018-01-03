@@ -1,0 +1,5 @@
+<config>
+  <server name="pepe@jajaj.es" ip="jojo" puerto="9090"></server>
+  <database path="value" passwdpath="jojo"></database>
+  <log path="value"></log>
+</config>
