@@ -46,18 +46,19 @@ class CONFIGHandler(ContentHandler):
     def Const_Constructor(self, arg):
 
         METODO = METODO.upper()
-
-class Configurator(object):
-    """Configurator."""
-    def __init__(self, arg):
-        self.arg = arg
-
         SERVER, PORT = SIP_ADDRESS.split(':')
         login, SERVER = SERVER.split('@')
         PORT = int(PORT)
         METODO = METODO.upper()
         PROTOCOL = 'SIP/2.0\r\n\r\n'
         DATA = ' '.join([METODO.upper(), "sip:" + SIP_ADDRESS, PROTOCOL])
+
+
+class Configurator(object):
+    """Configurator."""
+    def __init__(self, arg):
+        self.arg = arg
+
 
 
 #######################MAIN#######################
