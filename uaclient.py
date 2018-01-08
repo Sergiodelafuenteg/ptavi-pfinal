@@ -21,11 +21,13 @@ class CONFIGHandler(ContentHandler):
     def __init__(self):
         """Constructor. Inicializamos las variables."""
         self.list = []
+        self.PX_PORT = ""
         self.attributs = {}
         self.tags = {
             'account': ['username', 'passwd'],
             'uaserver': ['ip', 'puerto'],
             'rtpaudio': ['puerto'],
+            'regproxy': ['ip', 'puerto'],
             'log': ['path'],
             'audio': ['path']}
 
@@ -43,33 +45,36 @@ class CONFIGHandler(ContentHandler):
 
         return self.list
 
-    def Const_Constructor(self, arg):
 
-        METODO = METODO.upper()
-        SERVER, PORT = SIP_ADDRESS.split(':')
-        login, SERVER = SERVER.split('@')
-        PORT = int(PORT)
-        METODO = METODO.upper()
-        PROTOCOL = 'SIP/2.0\r\n\r\n'
-        DATA = ' '.join([METODO.upper(), "sip:" + SIP_ADDRESS, PROTOCOL])
+class Configurator(CONFIGHandler):
 
-
-class Configurator(object):
     """Configurator."""
-    def __init__(self, arg):
-        self.arg = arg
+    def __init__(self):
+        """initialize selfs"""
+        parser = make_parser()
+        self.cHandler = CONFIGHandler()
+        parser.setContentHandler(self.cHandler)
+        parser.parse(CONFIG)
+        print('jojo')
 
+    def Buffer_Constructor(self,metodo):
+
+        metodo = metodo.upper()
+        self.PX_SERVER = self.cHandler.attributs['regproxy']['ip']
+        self.PX_PORT = int(self.cHandler.attributs['regproxy']['puerto'])
+        self.login = self.cHandler.attributs['account']['username']
+        self.password = self.cHandler.attributs['account']['passwd']
+        self.PROTOCOL = 'SIP/2.0\r\n\r\n'
+        print(self.PX_SERVER)
+        #self.DATA = ' '.join([METODO.upper(), "sip:" + SIP_ADDRESS, PROTOCOL])
 
 
 #######################MAIN#######################
 
 if __name__ == '__main__':
 
-    parser = make_parser()
-    cHandler = CONFIGHandler()
-    parser.setContentHandler(cHandler)
-    parser.parse(CONFIG)
-    print(cHandler.get_tags())
+    config = Configurator()
+    config.Buffer_Constructor(METODO)
 
 
     print("jajaj")
