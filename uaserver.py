@@ -5,6 +5,35 @@
 import socketserver
 import sys
 import os
+from uaclient import CONFIGHandler
+
+try:
+    _, CONFIG = sys.argv
+
+except ValueError:
+    sys.exit('Usage: python3 uaserver.py config')
+
+########################INICIO#################
+
+class Configurator(CONFIGHandler):
+
+    """Configurator."""
+    def __init__(self, metodo, option):
+        """initialize selfs"""
+        parser = make_parser()
+        self.cHandler = CONFIGHandler()
+        parser.setContentHandler(self.cHandler)
+        parser.parse(CONFIG)
+
+        self.login = self.cHandler.attributs['account']['username']
+        self.password = self.cHandler.attributs['account']['passwd']
+        self.ip = self.cHandler.attributs['uaserver']['ip']
+        self.port = self.cHandler.attributs['uaserver']['puerto']
+        self.rtpport = self.cHandler.attributs['rtpaudio']['puerto']
+        self.PX_SERVER = self.cHandler.attributs['regproxy']['ip']
+        self.PX_PORT = int(self.cHandler.attributs['regproxy']['puerto'])
+        self.log_path = self.cHandler.attributs['log']['path']
+        self.audio_path = self.cHandler.attributs['audio']['path']
 
 
 class EchoHandler(socketserver.DatagramRequestHandler):
@@ -39,11 +68,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
 if __name__ == "__main__":
     # Creamos servidor de eco y escuchamos
-    if len(sys.argv) != 4:
-        sys.exit("Usage: python3 server.py IP port audio_file")
-    IP = sys.argv[1]
-    PORT = int(sys.argv[2])
-    CANCION = (sys.argv[3])
+
     serv = socketserver.UDPServer((IP, PORT), EchoHandler)
     print("Listening...")
     serv.serve_forever()
