@@ -1,0 +1,8 @@
+<config>
+  <account username="juan@jaja.es" passwd="cadabra"></account>
+  <uaserver ip="127.0.0.1" puerto="8585"></uaserver>
+  <rtpaudio puerto="34943"></rtpaudio>
+  <regproxy ip= "127.0.0.1" puerto = "9090"></regproxy>
+  <log path="ua2_log.txt"></log>
+  <audio path="cancion.mp3"></audio>
+</config>
