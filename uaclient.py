@@ -16,12 +16,12 @@ except ValueError:
 
 ################INICIO#################
 
+
 class CONFIGHandler(ContentHandler):
     """Clase para manejar CONFIG."""
     def __init__(self):
         """Constructor. Inicializamos las variables."""
         self.list = []
-        self.PX_PORT = ""
         self.attributs = {}
         self.tags = {
             'account': ['username', 'passwd'],
@@ -49,45 +49,63 @@ class CONFIGHandler(ContentHandler):
 class Configurator(CONFIGHandler):
 
     """Configurator."""
-    def __init__(self):
+    def __init__(self, metodo, option):
         """initialize selfs"""
         parser = make_parser()
         self.cHandler = CONFIGHandler()
         parser.setContentHandler(self.cHandler)
         parser.parse(CONFIG)
-        print('jojo')
 
-    def Buffer_Constructor(self,metodo):
-
-        metodo = metodo.upper()
         self.PX_SERVER = self.cHandler.attributs['regproxy']['ip']
         self.PX_PORT = int(self.cHandler.attributs['regproxy']['puerto'])
         self.login = self.cHandler.attributs['account']['username']
         self.password = self.cHandler.attributs['account']['passwd']
-        self.PROTOCOL = 'SIP/2.0\r\n\r\n'
-        print(self.PX_SERVER)
-        #self.DATA = ' '.join([METODO.upper(), "sip:" + SIP_ADDRESS, PROTOCOL])
+        metodo = metodo.upper()
+        self.check_method(metodo, option)
 
+    def check_method(self, method, option):
+        methods = ['REGISTER','INVITE', 'ACK', 'BYE']
+        if method in methods:
+            if method == 'REGISTER':
+                PROTOCOL = 'SIP/2.0\r\n'
+                self.DATA = ' '.join([method, "sip:" + self.login, PROTOCOL])
+                self.DATA = self.DATA + 'Expires: ' + option + '\r\n\r\n'
+            elif method == 'INVITE':
+                PROTOCOL = 'SIP/2.0\r\n\r\n'
+                self.DATA = ' '.join([method, "sip:" + self.login, PROTOCOL])
+
+def Code_Manager(cod_answer):
+    codes = ['200','400', '401', '404', '405']
+    if method in methods:
+        if cod_answer == '200':
+            pass
+        elif cod_answer == '400':
+            pass
+        elif cod_answer == '401':
+            pass
+        elif cod_answer == '404':
+            pass
+        elif cod_answer == '405':
+            pass
 
 #######################MAIN#######################
 
 if __name__ == '__main__':
 
-    config = Configurator()
-    config.Buffer_Constructor(METODO)
+    config = Configurator(METODO, OPTION)
 
 
     print("jajaj")
 
 
 
-"""
+
 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-    my_socket.connect((SERVER, PORT))
-    my_socket.send(bytes(DATA, 'utf-8'))
+    my_socket.connect((config.PX_SERVER, config.PX_PORT))
+    my_socket.send(bytes(config.DATA, 'utf-8'))
     data = my_socket.recv(1024)
+    print(data)
     cod_answer = data.decode('utf-8').split(' ')[-2]
     if (cod_answer == '200') and (METODO != 'BYE'):
         DATA = ' '.join(["ACK", "sip:" + SIP_ADDRESS, PROTOCOL])
         my_socket.send(bytes(DATA, 'utf-8'))
-"""
