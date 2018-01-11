@@ -9,6 +9,8 @@ from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 import json
 import time
+import random
+import hashlib
 
 ATTR_TIME = '%Y-%m-%d %H:%M:%S +0000'
 Users = {}
@@ -70,8 +72,9 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         """function for check the method."""
         methods = ['REGISTER','INVITE', 'ACK', 'BYE']
         data_send = ""
+        manager = Meth_Manag()
         if method in methods:
-            if (protocol == 'SIP/2.0\r\n') and (sip[0:4] == 'sip:'):
+            if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
                 if method == 'INVITE':
                     data_send = ("SIP/2.0 100 Trying\r\n\r\n" +
                                  "SIP/2.0 180 Ringing\r\n\r\n" +
@@ -82,6 +85,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     os.system('mp32rtp -i 127.0.0.1 -p 23032 < ' +
                               CANCION)
                 elif method == 'REGISTER':
+                    manager.register(data, self.client_address)
                     data_send = "SIP/2.0 401 Unauthorized\r\n\r\n"
             else:
                 data_send = "SIP/2.0 400 Bad Request\r\n\r\n"
@@ -93,15 +97,16 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         """handler server."""
         if not self.Users:
             json2registered()
-        data = self.rfile.read().decode('utf-8')
-        data = data.split(' ')
+        all_data = self.rfile.read().decode('utf-8')
+        all_data = all_data.split('\r\n')
+        print(all_data)
+        data = all_data[0].split(' ')
         print(data)
-        self.check_method(data[0], data[2][0:9], data[1], data)
+        self.check_method(data[0], data[2], data[1], all_data)
 
 class Meth_Manag(EchoHandler):
     """Manage methods."""
-    def __init__(self, arg):
-        self.data = data
+    def __init__(self):
         self.data_send = ""
 
 
@@ -114,23 +119,6 @@ class Meth_Manag(EchoHandler):
         for address in list_del:
             del self.Users[address]
 
-
-
-    def register(self):
-        """handle register."""
-
-        self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
-        metodo, address, protocol, expire = self.data.split(' ')
-        _, address = address.split(':')
-        expire, _, _ = expire.split('\r')
-        actual_time = time.time()
-        exp_time = actual_time + int(expire)
-        exp_time = time.strftime(ATTR_TIME, time.gmtime(exp_time))
-        Users[address] = {'address': self.client_address[0],
-                               'expire': exp_time}
-        register2json()
-        self.check_exp(time.strftime(ATTR_TIME, time.gmtime(actual_time)))
-
     def checking_nonce(self, nonce, user):
         """
         method to get the number result of hash function
@@ -138,9 +126,28 @@ class Meth_Manag(EchoHandler):
         """
         function_check = hashlib.md5()
         function_check.update(bytes(str(nonce), "utf-8"))
-        function_check.update(bytes(self.devolver_pass(user), "utf-8"))
+        function_check.update(bytes(user, "utf-8"))
         function_check.digest()
         return function_check.hexdigest()
+
+
+    def register(self, data, client_address):
+        """handle register."""
+
+        #nonce = random.randint(0,99999)
+        #self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+        _, address, protocol = data[0].split(' ')
+        _, address = address.split(':')
+        _, expire = data[1].split(' ')
+        actual_time = time.time()
+        exp_time = actual_time + int(expire)
+        exp_time = time.strftime(ATTR_TIME, time.gmtime(exp_time))
+        Users[address] = {'address': client_address[0],
+                               'expire': exp_time}
+        register2json()
+        self.check_exp(time.strftime(ATTR_TIME, time.gmtime(actual_time)))
+        print(self.checking_nonce('hshs','pepe'))
+
 
 
 if __name__ == "__main__":
