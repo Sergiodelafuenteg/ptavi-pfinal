@@ -60,6 +60,8 @@ class Configurator(CONFIGHandler):
         self.PX_PORT = int(self.cHandler.attributs['regproxy']['puerto'])
         self.login = self.cHandler.attributs['account']['username']
         self.port = self.cHandler.attributs['uaserver']['puerto']
+        self.ip = self.cHandler.attributs['uaserver']['ip']
+        self.rtpport = self.cHandler.attributs['rtpaudio']['puerto']
         self.password = self.cHandler.attributs['account']['passwd']
         metodo = metodo.upper()
         self.check_method(metodo, option)
@@ -72,8 +74,15 @@ class Configurator(CONFIGHandler):
                 self.DATA = ' '.join([method, "sip:" + self.login, PROTOCOL])
                 self.DATA = self.DATA + 'Expires: ' + option + '\r\n\r\n'
             elif method == 'INVITE':
-                PROTOCOL = 'SIP/2.0\r\n\r\n'
-                self.DATA = ' '.join([method, "sip:" + self.login, PROTOCOL])
+                PROTOCOL = 'SIP/2.0\r\n'
+                self.DATA = ' '.join([method, "sip:" + option, PROTOCOL])
+                self.DATA += 'Content-Type: application/sdp\r\n\r\n'
+                self.DATA += 'v=0\r\n'
+                self.DATA += 'o={} {}\r\n'.format(self.login, self.ip)
+                self.DATA += 's=misesion\r\n'
+                self.DATA += 't=0\r\n'
+                self.DATA += 'v=0\r\n'
+                self.DATA += 'm=audio {} RTP\r\n\r\n'.format(self.rtpport)
 
 def Code_Manager(cod_answer):
     codes = ['200','400', '401', '404', '405']
