@@ -59,6 +59,7 @@ class Configurator(CONFIGHandler):
         self.PX_SERVER = self.cHandler.attributs['regproxy']['ip']
         self.PX_PORT = int(self.cHandler.attributs['regproxy']['puerto'])
         self.login = self.cHandler.attributs['account']['username']
+        self.port = self.cHandler.attributs['uaserver']['puerto']
         self.password = self.cHandler.attributs['account']['passwd']
         metodo = metodo.upper()
         self.check_method(metodo, option)
