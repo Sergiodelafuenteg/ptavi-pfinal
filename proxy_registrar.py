@@ -7,7 +7,11 @@ import sys
 import os
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+import json
+import time
 
+ATTR_TIME = '%Y-%m-%d %H:%M:%S +0000'
+Users = {}
 
 try:
     _, CONFIG = sys.argv
@@ -17,17 +21,18 @@ except ValueError:
 
 ################INICIO#################
 
-def checking_nonce(self, nonce, user):
-    """
-    method to get the number result of hash function
-    with password and nonce
-    """
-    function_check = hashlib.md5()
-    function_check.update(bytes(str(nonce), "utf-8"))
-    function_check.update(bytes(self.devolver_pass(user), "utf-8"))
-    function_check.digest()
-    return function_check.hexdigest()
+def register2json():
+    """metodo para registrar usuarios en json."""
+    with open('registered.json', 'w') as outfile:
+        json.dump(Users, outfile, indent=3)
 
+def json2registered():
+    """metodo para leer json externo."""
+    try:
+        with open('registered.json', 'r') as infile:
+            Users = json.loads(infile)
+    except:
+        pass
 
 class CONFIGHandler(ContentHandler):
     """Clase para manejar CONFIG."""
@@ -55,11 +60,13 @@ class CONFIGHandler(ContentHandler):
         return self.list
 
 
-
 class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
 
-    def check_method(self, method, protocol, sip):
+    Users = {}
+
+
+    def check_method(self, method, protocol, sip, data):
         """function for check the method."""
         methods = ['REGISTER','INVITE', 'ACK', 'BYE']
         data_send = ""
@@ -84,10 +91,57 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
     def handle(self):
         """handler server."""
+        if not self.Users:
+            json2registered()
         data = self.rfile.read().decode('utf-8')
         data = data.split(' ')
         print(data)
-        self.check_method(data[0], data[2][0:9], data[1])
+        self.check_method(data[0], data[2][0:9], data[1], data)
+
+class Meth_Manag(EchoHandler):
+    """Manage methods."""
+    def __init__(self, arg):
+        self.data = data
+        self.data_send = ""
+
+
+    def check_exp(self, act_time):
+        """Checkear expiracion del user."""
+        list_del = []
+        for address in self.Users:
+            if self.Users[address]['expire'] <= act_time:
+                list_del.append(address)
+        for address in list_del:
+            del self.Users[address]
+
+
+
+    def register(self):
+        """handle register."""
+
+        self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+        metodo, address, protocol, expire = self.data.split(' ')
+        _, address = address.split(':')
+        expire, _, _ = expire.split('\r')
+        actual_time = time.time()
+        exp_time = actual_time + int(expire)
+        exp_time = time.strftime(ATTR_TIME, time.gmtime(exp_time))
+        Users[address] = {'address': self.client_address[0],
+                               'expire': exp_time}
+        register2json()
+        self.check_exp(time.strftime(ATTR_TIME, time.gmtime(actual_time)))
+
+    def checking_nonce(self, nonce, user):
+        """
+        method to get the number result of hash function
+        with password and nonce
+        """
+        function_check = hashlib.md5()
+        function_check.update(bytes(str(nonce), "utf-8"))
+        function_check.update(bytes(self.devolver_pass(user), "utf-8"))
+        function_check.digest()
+        return function_check.hexdigest()
+
 
 if __name__ == "__main__":
     # Creamos servidor de eco y escuchamos
