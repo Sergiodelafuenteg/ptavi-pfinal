@@ -8,11 +8,6 @@ from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 
 
-try:
-    _, CONFIG, METODO, OPTION = sys.argv
-
-except ValueError:
-    sys.exit('Usage: python3 uaclient.py config method option')
 
 ################INICIO#################
 
@@ -56,13 +51,16 @@ class Configurator(CONFIGHandler):
         parser.setContentHandler(self.cHandler)
         parser.parse(CONFIG)
 
+        self.login = self.cHandler.attributs['account']['username']
+        self.password = self.cHandler.attributs['account']['passwd']
+        self.ip = self.cHandler.attributs['uaserver']['ip']
+        self.port = int(self.cHandler.attributs['uaserver']['puerto'])
+        self.rtpport = self.cHandler.attributs['rtpaudio']['puerto']
         self.PX_SERVER = self.cHandler.attributs['regproxy']['ip']
         self.PX_PORT = int(self.cHandler.attributs['regproxy']['puerto'])
-        self.login = self.cHandler.attributs['account']['username']
-        self.port = self.cHandler.attributs['uaserver']['puerto']
-        self.ip = self.cHandler.attributs['uaserver']['ip']
-        self.rtpport = self.cHandler.attributs['rtpaudio']['puerto']
-        self.password = self.cHandler.attributs['account']['passwd']
+        self.log_path = self.cHandler.attributs['log']['path']
+        self.audio_path = self.cHandler.attributs['audio']['path']
+
         metodo = metodo.upper()
         self.check_method(metodo, option)
 
@@ -72,6 +70,8 @@ class Configurator(CONFIGHandler):
             if method == 'REGISTER':
                 PROTOCOL = 'SIP/2.0\r\n'
                 self.DATA = ' '.join([method, "sip:" + self.login, PROTOCOL])
+                self.DATA = '{} sip:{}:{} {}'.format(method, self.login,
+                            self.port, PROTOCOL)
                 self.DATA = self.DATA + 'Expires: ' + option + '\r\n\r\n'
             elif method == 'INVITE':
                 PROTOCOL = 'SIP/2.0\r\n'
@@ -81,8 +81,11 @@ class Configurator(CONFIGHandler):
                 self.DATA += 'o={} {}\r\n'.format(self.login, self.ip)
                 self.DATA += 's=misesion\r\n'
                 self.DATA += 't=0\r\n'
-                self.DATA += 'v=0\r\n'
                 self.DATA += 'm=audio {} RTP\r\n\r\n'.format(self.rtpport)
+            elif method == 'ACK':
+                PROTOCOL = 'SIP/2.0\r\n\r\n'
+                self.DATA = ' '.join(["ACK", "sip:" + self.login, PROTOCOL])
+                print('senack')
 
 def Code_Manager(cod_answer):
     codes = ['200','400', '401', '404', '405']
@@ -102,20 +105,21 @@ def Code_Manager(cod_answer):
 
 if __name__ == '__main__':
 
+    try:
+        _, CONFIG, METODO, OPTION = sys.argv
+
+    except ValueError:
+        sys.exit('Usage: python3 uaclient.py config method option')
+
     config = Configurator(METODO, OPTION)
 
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+        my_socket.connect((config.PX_SERVER, config.PX_PORT))
+        print(config.DATA)
+        my_socket.send(bytes(config.DATA, 'utf-8'))
+        data = my_socket.recv(1024)
+        cod_answer = data.decode('utf-8')
 
-    print("jajaj")
-
-
-
-
-with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-    my_socket.connect((config.PX_SERVER, config.PX_PORT))
-    my_socket.send(bytes(config.DATA, 'utf-8'))
-    data = my_socket.recv(1024)
-    print(data)
-    cod_answer = data.decode('utf-8').split(' ')[-2]
-    if (cod_answer == '200') and (METODO != 'BYE'):
-        DATA = ' '.join(["ACK", "sip:" + SIP_ADDRESS, PROTOCOL])
-        my_socket.send(bytes(DATA, 'utf-8'))
+        if (cod_answer == '200') and (METODO != 'BYE'):
+            config.check_method('ACK',5)
+            my_socket.send(bytes(config.DATA, 'utf-8'))
