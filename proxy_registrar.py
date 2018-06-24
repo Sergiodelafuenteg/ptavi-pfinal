@@ -3,6 +3,7 @@
 """Clase (y programa principal) para un servidor en UDP simple."""
 
 import socketserver
+import socket
 import sys
 import os
 from xml.sax import make_parser
@@ -13,6 +14,7 @@ import random
 import hashlib
 
 ATTR_TIME = '%Y-%m-%d %H:%M:%S +0000'
+NONCE = random.randint(0,99999)
 Users = {}
 
 try:
@@ -35,6 +37,16 @@ def json2registered():
             Users = json.loads(infile)
     except:
         pass
+
+def Retransmitir(address, data):
+    """Retransmisiones, address es una tupla (ip,port)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+        my_socket.connect((address[0], int(address[1])))
+        print('retasmita a: ',address)
+        # print(data)
+        my_socket.send(bytes(data, 'utf-8'))
+
+###############CLASES###################
 
 class CONFIGHandler(ContentHandler):
     """Clase para manejar CONFIG."""
@@ -75,18 +87,11 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         manager = Meth_Manag()
         if method in methods:
             if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
-                if method == 'INVITE':
-                    data_send = ("SIP/2.0 100 Trying\r\n\r\n" +
-                                 "SIP/2.0 180 Ringing\r\n\r\n" +
-                                 "SIP/2.0 200 OK\r\n\r\n")
-                elif method == 'BYE':
-                    data_send = "SIP/2.0 200 OK\r\n\r\n"
-                elif method == 'ACK':
-                    os.system('mp32rtp -i 127.0.0.1 -p 23032 < ' +
-                              CANCION)
-                elif method == 'REGISTER':
-                    manager.register(data, self.client_address)
+                if method == 'REGISTER':
+                    manager.Register(data, self.client_address)
                     data_send = "SIP/2.0 401 Unauthorized\r\n\r\n"
+                else:
+                    manager.Invite(data, self.client_address)
             else:
                 data_send = "SIP/2.0 400 Bad Request\r\n\r\n"
         else:
@@ -95,13 +100,13 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
     def handle(self):
         """handler server."""
-        if not self.Users:
+        if not Users:
             json2registered()
         all_data = self.rfile.read().decode('utf-8')
-        all_data = all_data.split('\r\n')
-        print(all_data)
-        data = all_data[0].split(' ')
-        print(data)
+        data = all_data.split('\r\n')
+        print('por aki ha pasao: ', data)
+        data = data[0].split(' ')
+        # print(data)
         self.check_method(data[0], data[2], data[1], all_data)
 
 class Meth_Manag(EchoHandler):
@@ -113,11 +118,11 @@ class Meth_Manag(EchoHandler):
     def check_exp(self, act_time):
         """Checkear expiracion del user."""
         list_del = []
-        for address in self.Users:
-            if self.Users[address]['expire'] <= act_time:
+        for address in Users:
+            if Users[address]['expire'] <= act_time:
                 list_del.append(address)
         for address in list_del:
-            del self.Users[address]
+            del Users[address]
 
     def checking_nonce(self, nonce, user):
         """
@@ -131,23 +136,31 @@ class Meth_Manag(EchoHandler):
         return function_check.hexdigest()
 
 
-    def register(self, data, client_address):
+    def Register(self, data, client_address):
         """handle register."""
 
-        #nonce = random.randint(0,99999)
-        #self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+        data = data.split('\r\n')
         _, address, protocol = data[0].split(' ')
-        _, address = address.split(':')
+        _, address, port = address.split(':')
         _, expire = data[1].split(' ')
         actual_time = time.time()
         exp_time = actual_time + int(expire)
         exp_time = time.strftime(ATTR_TIME, time.gmtime(exp_time))
-        Users[address] = {'address': client_address[0],
-                               'expire': exp_time}
+        Users[address] = {'address': client_address[0],'port': port,
+                            'expire': exp_time,}
         register2json()
         self.check_exp(time.strftime(ATTR_TIME, time.gmtime(actual_time)))
-        print(self.checking_nonce('hshs','pepe'))
 
+    def Invite(self, all_data, client_address):
+        """handle register."""
+
+        data = all_data.split('\r\n')
+        _, address, _ = data[0].split(' ')
+        _, name = address.split(':')
+        print(Users)
+        address = (Users[name]['address'], Users[name]['port'])
+        print(address)
+        Retransmitir(address,all_data)
 
 
 if __name__ == "__main__":
@@ -157,11 +170,15 @@ if __name__ == "__main__":
     parser.setContentHandler(cHandler)
     parser.parse('pr.xml')
 
+    print(time.time())
     IP = cHandler.attributs['server']['ip']
     PORT = int(cHandler.attributs['server']['puerto'])
     serv = socketserver.UDPServer((IP, PORT), EchoHandler)
     print("Listening...")
-    serv.serve_forever()
+    try:
+        serv.serve_forever()
+    except KeyboardInterrupt:
+        print("\r\nFinalizado servidor")
 """
 
     CANCION = (sys.argv[3])
