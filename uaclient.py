@@ -6,11 +6,11 @@ import socket
 import sys
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-
+import hashlib
 
 
 ################INICIO#################
-
+NONCE = ''
 
 class CONFIGHandler(ContentHandler):
     """Clase para manejar CONFIG."""
@@ -73,6 +73,13 @@ class Configurator(CONFIGHandler):
                 self.DATA = '{} sip:{}:{} {}'.format(method, self.login,
                             self.port, PROTOCOL)
                 self.DATA = self.DATA + 'Expires: ' + option + '\r\n\r\n'
+            elif method == 'REGISTERLOG':
+                PROTOCOL = 'SIP/2.0\r\n'
+                self.DATA = ' '.join([method, "sip:" + self.login, PROTOCOL])
+                self.DATA = '{} sip:{}:{} {}'.format(method, self.login,
+                            self.port, PROTOCOL)
+                self.DATA = self.DATA + 'Expires: ' + option + '\r\n'
+                self.DATA += 'Authorization: Digest response =' + NONCE + '\r\n\r\n'
             elif method == 'INVITE':
                 PROTOCOL = 'SIP/2.0\r\n'
                 self.DATA = ' '.join([method, "sip:" + option, PROTOCOL])
@@ -101,6 +108,34 @@ def Code_Manager(cod_answer):
         elif cod_answer == '405':
             pass
 
+def checking_nonce(nonce, user):
+    """
+    method to get the number result of hash function
+    with password and nonce
+    """
+    function_check = hashlib.md5()
+    function_check.update(bytes(str(nonce), "utf-8"))
+    function_check.update(bytes(user, "utf-8"))
+    function_check.digest()
+    return function_check.hexdigest()
+
+def Meth_Handler(method, option):
+    """Funcion para manejar cada metodo"""
+    config = Configurator(method, option)
+    if method == 'REGISTER':
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+            my_socket.connect((config.PX_SERVER, config.PX_PORT))
+            # print(config.DATA)
+            my_socket.send(bytes(config.DATA, 'utf-8'))
+            data = my_socket.recv(1024)
+            data = data.decode('utf-8')
+            cod_answer = data.split(' ')[1]
+            if cod_answer == '401':
+                nonce = data.split('"')[1]
+                NONCE = checking_nonce(nonce, config.password)
+                config.check_method('REGISTERLOG',option)
+                my_socket.send(bytes(config.DATA, 'utf-8'))
+                print(NONCE)
 #######################MAIN#######################
 
 if __name__ == '__main__':
@@ -113,14 +148,8 @@ if __name__ == '__main__':
 
     config = Configurator(METODO, OPTION)
 
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-        my_socket.connect((config.PX_SERVER, config.PX_PORT))
-        # print(config.DATA)
-        my_socket.send(bytes(config.DATA, 'utf-8'))
-        data = my_socket.recv(1024)
-        cod_answer = data.decode('utf-8')
-        print(cod_answer)
-
-        if (cod_answer == '200') and (METODO != 'BYE'):
-            config.check_method('ACK',5)
-            my_socket.send(bytes(config.DATA, 'utf-8'))
+    Meth_Handler(METODO, OPTION)
+        #
+        # if (cod_answer == '200') and (METODO != 'BYE'):
+        #     config.check_method('ACK',5)
+        #     my_socket.send(bytes(config.DATA, 'utf-8'))
