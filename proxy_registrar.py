@@ -38,18 +38,6 @@ def json2registered():
     except:
         pass
 
-def Retransmitir(address, data):
-    """Retransmisiones, address es una tupla (ip,port)."""
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-        my_socket.connect((address[0], int(address[1])))
-        print('retasmita a: ',address)
-        # print(data)
-        my_socket.send(bytes(data, 'utf-8'))
-        data = my_socket.recv(1024)
-        cod_answer = data.decode('utf-8')
-        print(cod_answer)
-
-
 ###############CLASES###################
 
 class CONFIGHandler(ContentHandler):
@@ -94,7 +82,9 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             # if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
                 if method == 'REGISTER':
                     manager.Register(data, self.client_address)
-                    data_send = "SIP/2.0 401 Unauthorized\r\n\r\n"
+                    data_send = "SIP/2.0 401 Unauthorized\r\n"
+                    data_send += 'WWW Authenticate: Digest nonce="{}"\r\n\r\n'
+                    data_send = data_send.format(NONCE)
                 else:
                     data_send = manager.Invite(data, self.client_address)
             else:
@@ -145,6 +135,9 @@ class Meth_Manag(EchoHandler):
         """handle register."""
 
         data = data.split('\r\n')
+        # if len(data) != 5:
+        #     pass
+        print(len(data), data)
         _, address, protocol = data[0].split(' ')
         _, address, port = address.split(':')
         _, expire = data[1].split(' ')
@@ -155,6 +148,7 @@ class Meth_Manag(EchoHandler):
                             'expire': exp_time,}
         register2json()
         self.check_exp(time.strftime(ATTR_TIME, time.gmtime(actual_time)))
+        print(self.checking_nonce(NONCE,'pepe'))
 
     def Invite(self, all_data, client_address):
         """handle register."""
