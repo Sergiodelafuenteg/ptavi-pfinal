@@ -115,10 +115,11 @@ if __name__ == '__main__':
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         my_socket.connect((config.PX_SERVER, config.PX_PORT))
-        print(config.DATA)
+        # print(config.DATA)
         my_socket.send(bytes(config.DATA, 'utf-8'))
         data = my_socket.recv(1024)
         cod_answer = data.decode('utf-8')
+        print(cod_answer)
 
         if (cod_answer == '200') and (METODO != 'BYE'):
             config.check_method('ACK',5)
