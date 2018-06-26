@@ -45,6 +45,10 @@ def Retransmitir(address, data):
         print('retasmita a: ',address)
         # print(data)
         my_socket.send(bytes(data, 'utf-8'))
+        data = my_socket.recv(1024)
+        cod_answer = data.decode('utf-8')
+        print(cod_answer)
+
 
 ###############CLASES###################
 
@@ -86,12 +90,13 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         data_send = ""
         manager = Meth_Manag()
         if method in methods:
-            if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
+            if 1 == 1:
+            # if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
                 if method == 'REGISTER':
                     manager.Register(data, self.client_address)
                     data_send = "SIP/2.0 401 Unauthorized\r\n\r\n"
                 else:
-                    manager.Invite(data, self.client_address)
+                    data_send = manager.Invite(data, self.client_address)
             else:
                 data_send = "SIP/2.0 400 Bad Request\r\n\r\n"
         else:
@@ -103,8 +108,8 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         if not Users:
             json2registered()
         all_data = self.rfile.read().decode('utf-8')
+        print('por aki ha pasao: ', all_data)
         data = all_data.split('\r\n')
-        print('por aki ha pasao: ', data)
         data = data[0].split(' ')
         # print(data)
         self.check_method(data[0], data[2], data[1], all_data)
@@ -157,11 +162,18 @@ class Meth_Manag(EchoHandler):
         data = all_data.split('\r\n')
         _, address, _ = data[0].split(' ')
         _, name = address.split(':')
-        print(Users)
+        # print(Users)
         address = (Users[name]['address'], Users[name]['port'])
-        print(address)
-        Retransmitir(address,all_data)
-
+        # print(address)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+            my_socket.connect((address[0], int(address[1])))
+            print('retasmita a: ',address)
+            # print(data)
+            my_socket.send(bytes(all_data, 'utf-8'))
+            data = my_socket.recv(1024)
+            cod_answer = data.decode('utf-8')
+            print(cod_answer)
+            return cod_answer
 
 if __name__ == "__main__":
     # Creamos servidor de eco y escuchamos
