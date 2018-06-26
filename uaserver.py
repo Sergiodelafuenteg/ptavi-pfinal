@@ -38,7 +38,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
     def check_method(self, method, protocol, sip):
         """function for check the method."""
-        config2 = Configurator()
+        config = Configurator()
         methods = ['INVITE', 'ACK', 'BYE']
         data_send = ""
         if method in methods:
@@ -53,7 +53,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                                 'o={} {}\r\n'.format(config.login, config.ip) +
                                 's=misesion\r\n' +
                                 't=0\r\n' +
-                                'v=0\r\n' +
                                 'm=audio {} RTP\r\n\r\n'.format(config.rtpport))
                 elif method == 'BYE':
                     data_send = "SIP/2.0 200 OK\r\n\r\n"
@@ -65,13 +64,15 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         else:
             data_send = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
         self.wfile.write(bytes(data_send, 'utf-8'))
+        print(data_send)
 
     def handle(self):
         """handler server."""
         data = self.rfile.read().decode('utf-8')
+        print(data)
         data = data.split('\r\n')
         metodo, sip_address, protocol = data[0].split(' ')
-        print(metodo)
+        print(metodo + ' || ' + sip_address + ' || ' + protocol)
         self.check_method(metodo, protocol, sip_address)
 
 if __name__ == "__main__":
