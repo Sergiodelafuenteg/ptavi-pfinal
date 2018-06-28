@@ -1,0 +1,4 @@
+Reestablecer los usuarios conectados.
+Integracion de (c)cvlc.
+Integracion de (c)cvlc con hilos.
+Hilos para el envio de audio via RTP.
