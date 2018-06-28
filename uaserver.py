@@ -55,6 +55,9 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         if method in methods:
             if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
                 if method == 'INVITE':
+                    busy = False
+                    if not busy:
+                        print('nobusy')
                     print('loase')
                     data_send = ("SIP/2.0 100 Trying\r\n\r\n" +
                                  "SIP/2.0 180 Ringing\r\n\r\n" +
