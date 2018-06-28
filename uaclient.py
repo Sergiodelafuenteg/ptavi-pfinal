@@ -148,14 +148,7 @@ def Meth_Handler(method, option):
             my_socket.connect((config.PX_SERVER, config.PX_PORT))
             # print(config.DATA)
             my_socket.send(bytes(config.DATA, 'utf-8'))
-            data = my_socket.recv(1024)
-            data = data.decode('utf-8')
-            print(data)
-            option = data.split('audio ')
-            option = option[1].split(' ')[0]
-            print(option)
-            config.check_method('ACK',option)
-            my_socket.send(bytes(config.DATA, 'utf-8'))
+
 
 
     elif method == 'BYE':
@@ -164,7 +157,7 @@ def Meth_Handler(method, option):
             my_socket.send(bytes(config.DATA, 'utf-8'))
             data = my_socket.recv(1024)
             data = data.decode('utf-8')
-    print(data)
+    
 
 #######################MAIN#######################
 
