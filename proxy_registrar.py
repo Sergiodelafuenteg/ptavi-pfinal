@@ -99,8 +99,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                         data_send = "SIP/2.0 401 Unauthorized\r\n"
                         data_send += 'WWW Authenticate: Digest nonce="{}"\r\n\r\n'
                         data_send = data_send.format(NONCE)
-                else:
-                    data_send = self.Invite(data, self.client_address)
+                elif method == 'INVITE':
+                    self.Invite(data, self.client_address)
+                elif method == 'ACK':
+                    self.ACK(data, self.client_address)
             else:
                 data_send = "SIP/2.0 400 Bad Request\r\n\r\n"
         else:
@@ -114,7 +116,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             self.json2registered()
         self.json2paswords()
         all_data = self.rfile.read().decode('utf-8')
-        print('por aki ha pasao: ', all_data)
+        # print('por aki ha pasao: ', all_data)
         data = all_data.split('\r\n')
         data = data[0].split(' ')
         # print(data)
@@ -167,6 +169,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     def Invite(self, all_data, client_address):
         """handle register."""
 
+        origen = all_data.split('o=')[1]
+        origen = origen.split(' ')[0]
+        address_origen = (self.Users[origen]['address'], self.Users[origen]['port'])
+        print(address_origen)
         data = all_data.split('\r\n')
         _, address, _ = data[0].split(' ')
         _, name = address.split(':')
@@ -178,10 +184,23 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             print('retasmita a: ',address)
             # print(data)
             my_socket.send(bytes(all_data, 'utf-8'))
-            data = my_socket.recv(1024)
-            cod_answer = data.decode('utf-8')
-            print(cod_answer)
-            return cod_answer
+            data2 = my_socket.recv(1024)
+            my_socket.connect((address_origen[0], int(address_origen[1])))
+            my_socket.send(data2)
+
+        def ACK(self, all_data, client_address):
+            data = all_data.split('\r\n')
+            _, address, _ = data[0].split(' ')
+            _, name = address.split(':')
+            # print(self.Users)
+            address = (self.Users[name]['address'], self.Users[name]['port'])
+            # print(address)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+                my_socket.connect((address[0], int(address[1])))
+                print('retasmita a: ',address)
+                # print(data)
+                my_socket.send(bytes(all_data, 'utf-8'))
+
 
 if __name__ == "__main__":
     # Creamos servidor de eco y escuchamos
