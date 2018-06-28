@@ -4,16 +4,28 @@
 
 import socket
 import sys
+import os
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+from threading import Thread
 import hashlib
 
 
 ################INICIO#################
 NONCE = ''
 
+def Listen(ip,port):
+    """Escuchar."""
+    os.system('cvlc --play and exit rtp://@{}:{} 2> /dev/null'.format(ip,port))
+
+def Send_music(ip,port,path):
+    """Mandar."""
+    os.system('./mp32rtp -i {} -p {} < {}'.format(ip, port, path))
+
+
 class CONFIGHandler(ContentHandler):
     """Clase para manejar CONFIG."""
+
     def __init__(self):
         """Constructor. Inicializamos las variables."""
         self.list = []
@@ -28,7 +40,6 @@ class CONFIGHandler(ContentHandler):
 
     def startElement(self, name, attrs):
         """Método que se llama cuando se abre una etiqueta."""
-
         if name in self.tags:
             dicc = {}
             for attri in self.tags[name]:
@@ -37,15 +48,15 @@ class CONFIGHandler(ContentHandler):
             self.attributs[name] = dicc
 
     def get_tags(self):
-
+        """Devuelve la lista."""
         return self.list
 
 
 class Configurator(CONFIGHandler):
-
     """Configurator."""
+
     def __init__(self, metodo, option):
-        """initialize selfs"""
+        """initialize selfs."""
         parser = make_parser()
         self.cHandler = CONFIGHandler()
         parser.setContentHandler(self.cHandler)
@@ -60,11 +71,18 @@ class Configurator(CONFIGHandler):
         self.PX_PORT = int(self.cHandler.attributs['regproxy']['puerto'])
         self.log_path = self.cHandler.attributs['log']['path']
         self.audio_path = self.cHandler.attributs['audio']['path']
-
+        self.otherrtpport = ''
         self.check_method(metodo, option)
 
     def check_method(self, method, option):
+        """Que metodo usa?."""
         methods = ['REGISTER','INVITE', 'ACK', 'BYE', 'REGISTERLOG']
+        PROTOCOL = 'SIP/2.0\r\n'
+        Hilo_listen = Thread(target = Listen, args = (self.ip, self.rtpport))
+        Hilo_Send = Thread(target = Send_music, args = (self.ip,
+                                                       option,
+                                                       self.audio_path))
+
         if method in methods:
             if method == 'REGISTER':
                 PROTOCOL = 'SIP/2.0\r\n'
@@ -87,30 +105,18 @@ class Configurator(CONFIGHandler):
                 self.DATA += 's=misesion\r\n'
                 self.DATA += 't=0\r\n'
                 self.DATA += 'm=audio {} RTP\r\n\r\n'.format(self.rtpport)
+            elif method == 'BYE':
+                self.DATA = ' '.join([method, "sip:" + option, PROTOCOL])
             elif method == 'ACK':
                 PROTOCOL = 'SIP/2.0\r\n\r\n'
                 self.DATA = ' '.join(["ACK", "sip:" + self.login, PROTOCOL])
                 print('senack')
+                Hilo_Send.start()
+                # Hilo_listen.start()
 
-def Code_Manager(cod_answer):
-    codes = ['200','400', '401', '404', '405']
-    if method in methods:
-        if cod_answer == '200':
-            pass
-        elif cod_answer == '400':
-            pass
-        elif cod_answer == '401':
-            pass
-        elif cod_answer == '404':
-            pass
-        elif cod_answer == '405':
-            pass
 
 def checking_nonce(nonce, user):
-    """
-    method to get the number result of hash function
-    with password and nonce
-    """
+    """result of hash function with password and nonce."""
     function_check = hashlib.md5()
     function_check.update(bytes(str(nonce), "utf-8"))
     function_check.update(bytes(user, "utf-8"))
@@ -118,7 +124,7 @@ def checking_nonce(nonce, user):
     return function_check.hexdigest()
 
 def Meth_Handler(method, option):
-    """Funcion para manejar cada metodo"""
+    """Funcion para manejar cada metodo."""
     config = Configurator(method, option)
     if method == 'REGISTER':
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
@@ -144,8 +150,20 @@ def Meth_Handler(method, option):
             my_socket.send(bytes(config.DATA, 'utf-8'))
             data = my_socket.recv(1024)
             data = data.decode('utf-8')
+            print(data)
+            option = data.split('audio ')
+            option = option[1].split(' ')[0]
+            print(option)
             config.check_method('ACK',option)
             my_socket.send(bytes(config.DATA, 'utf-8'))
+
+
+    elif method == 'BYE':
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+            my_socket.connect((config.PX_SERVER, config.PX_PORT))
+            my_socket.send(bytes(config.DATA, 'utf-8'))
+            data = my_socket.recv(1024)
+            data = data.decode('utf-8')
     print(data)
 
 #######################MAIN#######################
