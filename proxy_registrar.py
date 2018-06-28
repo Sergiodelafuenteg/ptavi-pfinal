@@ -15,7 +15,7 @@ import hashlib
 
 ATTR_TIME = '%Y-%m-%d %H:%M:%S +0000'
 NONCE = random.randint(0,99999)
-Users = {}
+
 
 try:
     _, CONFIG = sys.argv
@@ -24,19 +24,6 @@ except ValueError:
     sys.exit('Usage: python3 proxy_registrar.py config')
 
 ################INICIO#################
-
-def register2json():
-    """metodo para registrar usuarios en json."""
-    with open('registered.json', 'w') as outfile:
-        json.dump(Users, outfile, indent=3)
-
-def json2registered():
-    """metodo para leer json externo."""
-    try:
-        with open('registered.json', 'r') as infile:
-            Users = json.loads(infile)
-    except:
-        pass
 
 ###############CLASES###################
 
@@ -70,23 +57,50 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
 
     Users = {}
+    Passwords = {'a':'po'}
 
+
+    def register2json(self):
+        """metodo para registrar usuarios en json."""
+        with open('registered.json', 'w') as outfile:
+            json.dump(self.Users, outfile, indent=3)
+
+    def json2registered(self):
+        """metodo para leer json externo."""
+        try:
+            with open('registered.json', 'r') as infile:
+                self.Users = json.load(infile)
+        except:
+            print('bjbj')
+
+    def json2paswords(self):
+        """metodo para leer passwords externos."""
+        try:
+            with open('passwords.json', 'r') as infile:
+                self.Passwords = json.load(infile)
+                print(self.Passwords)
+        except:
+            print('koko')
 
     def check_method(self, method, protocol, sip, data):
         """function for check the method."""
         methods = ['REGISTER','INVITE', 'ACK', 'BYE']
         data_send = ""
-        manager = Meth_Manag()
         if method in methods:
-            if 1 == 1:
-            # if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
+            # if 1 == 1:
+
+            if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
                 if method == 'REGISTER':
-                    manager.Register(data, self.client_address)
-                    data_send = "SIP/2.0 401 Unauthorized\r\n"
-                    data_send += 'WWW Authenticate: Digest nonce="{}"\r\n\r\n'
-                    data_send = data_send.format(NONCE)
+                    print(len(data.split('\r\n')))
+                    if len(data.split('\r\n')) == 5:
+                        self.Register(data, self.client_address)
+                        data_send = "SIP/2.0 200 OK\r\n\r\n"
+                    else:
+                        data_send = "SIP/2.0 401 Unauthorized\r\n"
+                        data_send += 'WWW Authenticate: Digest nonce="{}"\r\n\r\n'
+                        data_send = data_send.format(NONCE)
                 else:
-                    data_send = manager.Invite(data, self.client_address)
+                    data_send = self.Invite(data, self.client_address)
             else:
                 data_send = "SIP/2.0 400 Bad Request\r\n\r\n"
         else:
@@ -95,8 +109,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
     def handle(self):
         """handler server."""
-        if not Users:
-            json2registered()
+        if not self.Users:
+            print('nousers')
+            self.json2registered()
+        self.json2paswords()
         all_data = self.rfile.read().decode('utf-8')
         print('por aki ha pasao: ', all_data)
         data = all_data.split('\r\n')
@@ -104,20 +120,14 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         # print(data)
         self.check_method(data[0], data[2], data[1], all_data)
 
-class Meth_Manag(EchoHandler):
-    """Manage methods."""
-    def __init__(self):
-        self.data_send = ""
-
-
     def check_exp(self, act_time):
         """Checkear expiracion del user."""
         list_del = []
-        for address in Users:
-            if Users[address]['expire'] <= act_time:
+        for address in self.Users:
+            if self.Users[address]['expire'] <= act_time:
                 list_del.append(address)
         for address in list_del:
-            del Users[address]
+            del self.Users[address]
 
     def checking_nonce(self, nonce, user):
         """
@@ -144,11 +154,14 @@ class Meth_Manag(EchoHandler):
         actual_time = time.time()
         exp_time = actual_time + int(expire)
         exp_time = time.strftime(ATTR_TIME, time.gmtime(exp_time))
-        Users[address] = {'address': client_address[0],'port': port,
+        self.Users[address] = {'address': client_address[0],'port': port,
                             'expire': exp_time,}
-        register2json()
+        self.register2json()
         self.check_exp(time.strftime(ATTR_TIME, time.gmtime(actual_time)))
         print(self.checking_nonce(NONCE,'pepe'))
+
+    def Auth_Register(arg):
+        pass
 
     def Invite(self, all_data, client_address):
         """handle register."""
@@ -156,8 +169,8 @@ class Meth_Manag(EchoHandler):
         data = all_data.split('\r\n')
         _, address, _ = data[0].split(' ')
         _, name = address.split(':')
-        # print(Users)
-        address = (Users[name]['address'], Users[name]['port'])
+        # print(self.Users)
+        address = (self.Users[name]['address'], self.Users[name]['port'])
         # print(address)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             my_socket.connect((address[0], int(address[1])))
