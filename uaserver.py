@@ -16,7 +16,7 @@ def Listen(ip,port):
     os.system('cvlc rtp://@{}:{} 2> /dev/null'.format(ip,port))
 
 def Send_music(ip,port,path):
-    os.system('mp32rtp -i {} -p {} < {}'.format(ip, port, path))
+    os.system('./mp32rtp -i {} -p {} < {}'.format(ip, port, path))
 
 class Configurator(CONFIGHandler):
 
@@ -37,12 +37,13 @@ class Configurator(CONFIGHandler):
         self.PX_PORT = int(self.cHandler.attributs['regproxy']['puerto'])
         self.log_path = self.cHandler.attributs['log']['path']
         self.audio_path = self.cHandler.attributs['audio']['path']
+        self.otherrtpport =''
 
 class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
     print('popop')
 
-    def check_method(self, method, protocol, sip):
+    def check_method(self, method, protocol, sip, option):
         """function for check the method."""
         config = Configurator()
         Hilo_listen = Thread(target = Listen, args = (config.ip, config.rtpport))
@@ -52,27 +53,30 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
         methods = ['INVITE', 'ACK', 'BYE']
         data_send = ""
+        busy = False
         if method in methods:
             if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
                 if method == 'INVITE':
-                    busy = False
                     if not busy:
-                        print('nobusy')
-                    print('loase')
-                    data_send = ("SIP/2.0 100 Trying\r\n\r\n" +
-                                 "SIP/2.0 180 Ringing\r\n\r\n" +
-                                 "SIP/2.0 200 OK\r\n\r\n")
-                    data_send+= ('Content-Type: application/sdp\r\n\r\n' +
-                                'v=0\r\n' +
-                                'o={} {}\r\n'.format(config.login, config.ip) +
-                                's=misesion\r\n' +
-                                't=0\r\n' +
-                                'm=audio {} RTP\r\n\r\n'.format(config.rtpport))
+                        config.otherrtpport = option
+                        data_send = ("SIP/2.0 100 Trying\r\n\r\n" +
+                                     "SIP/2.0 180 Ringing\r\n\r\n" +
+                                     "SIP/2.0 200 OK\r\n\r\n")
+                        data_send+= ('Content-Type: application/sdp\r\n\r\n' +
+                                    'v=0\r\n' +
+                                    'o={} {}\r\n'.format(config.login, config.ip) +
+                                    's=misesion\r\n' +
+                                    't=0\r\n' +
+                                    'm=audio {} RTP\r\n\r\n'.format(config.rtpport))
+                    else:
+                        data_send = "SIP/2.0 480 Temporarily Unavailable\r\n\r\n"
                 elif method == 'BYE':
                     data_send = "SIP/2.0 200 OK\r\n\r\n"
-                    os.system("killall Hilo_listen")
-                    os.system("killall Hilo_Send")
+                    os.system('pkill -9 vlc')
+                    os.system('pkill -9 mp3')
+                    busy = False
                 elif method == 'ACK':
+                    busy = True
                     Hilo_listen.start()
                     Hilo_Send.start()
             else:
@@ -87,9 +91,13 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         data = self.rfile.read().decode('utf-8')
         print(data)
         data = data.split('\r\n')
+        print(data)
         metodo, sip_address, protocol = data[0].split(' ')
         print(metodo + ' || ' + sip_address + ' || ' + protocol)
-        self.check_method(metodo, protocol, sip_address)
+        if metodo == 'INVITE':
+            self.check_method(metodo, protocol, sip_address,'')
+        else:
+            self.check_method(metodo, protocol, sip_address,'')
 
 if __name__ == "__main__":
     # Creamos servidor de eco y escuchamos
