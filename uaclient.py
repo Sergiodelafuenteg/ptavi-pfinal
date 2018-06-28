@@ -10,7 +10,7 @@ import hashlib
 
 
 ################INICIO#################
-NONCE = ''
+NONCE = 'g'
 
 class CONFIGHandler(ContentHandler):
     """Clase para manejar CONFIG."""
@@ -61,22 +61,20 @@ class Configurator(CONFIGHandler):
         self.log_path = self.cHandler.attributs['log']['path']
         self.audio_path = self.cHandler.attributs['audio']['path']
 
-        metodo = metodo.upper()
         self.check_method(metodo, option)
 
     def check_method(self, method, option):
-        methods = ['REGISTER','INVITE', 'ACK', 'BYE']
+        methods = ['REGISTER','INVITE', 'ACK', 'BYE', 'REGISTERLOG']
         if method in methods:
             if method == 'REGISTER':
                 PROTOCOL = 'SIP/2.0\r\n'
-                self.DATA = ' '.join([method, "sip:" + self.login, PROTOCOL])
                 self.DATA = '{} sip:{}:{} {}'.format(method, self.login,
                             self.port, PROTOCOL)
                 self.DATA = self.DATA + 'Expires: ' + option + '\r\n\r\n'
             elif method == 'REGISTERLOG':
+                print(NONCE)
                 PROTOCOL = 'SIP/2.0\r\n'
-                self.DATA = ' '.join([method, "sip:" + self.login, PROTOCOL])
-                self.DATA = '{} sip:{}:{} {}'.format(method, self.login,
+                self.DATA = '{} sip:{}:{} {}'.format('REGISTER', self.login,
                             self.port, PROTOCOL)
                 self.DATA = self.DATA + 'Expires: ' + option + '\r\n'
                 self.DATA += 'Authorization: Digest response =' + NONCE + '\r\n\r\n'
@@ -132,16 +130,29 @@ def Meth_Handler(method, option):
             cod_answer = data.split(' ')[1]
             if cod_answer == '401':
                 nonce = data.split('"')[1]
+                global NONCE
                 NONCE = checking_nonce(nonce, config.password)
                 config.check_method('REGISTERLOG',option)
                 my_socket.send(bytes(config.DATA, 'utf-8'))
-                print(NONCE)
+                print(config.DATA)
+                data = my_socket.recv(1024)
+                data = data.decode('utf-8')
+    elif method == 'INVITE':
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+            my_socket.connect((config.PX_SERVER, config.PX_PORT))
+            # print(config.DATA)
+            my_socket.send(bytes(config.DATA, 'utf-8'))
+            data = my_socket.recv(1024)
+            data = data.decode('utf-8')
+    print(data)
+
 #######################MAIN#######################
 
 if __name__ == '__main__':
 
     try:
         _, CONFIG, METODO, OPTION = sys.argv
+        METODO = METODO.upper()
 
     except ValueError:
         sys.exit('Usage: python3 uaclient.py config method option')
