@@ -128,6 +128,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 list_del.append(address)
         for address in list_del:
             del self.Users[address]
+        self.register2json()
 
     def checking_nonce(self, nonce, user):
         """
