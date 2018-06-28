@@ -10,7 +10,7 @@ import hashlib
 
 
 ################INICIO#################
-NONCE = 'g'
+NONCE = ''
 
 class CONFIGHandler(ContentHandler):
     """Clase para manejar CONFIG."""
@@ -144,6 +144,8 @@ def Meth_Handler(method, option):
             my_socket.send(bytes(config.DATA, 'utf-8'))
             data = my_socket.recv(1024)
             data = data.decode('utf-8')
+            config.check_method('ACK',option)
+            my_socket.send(bytes(config.DATA, 'utf-8'))
     print(data)
 
 #######################MAIN#######################
