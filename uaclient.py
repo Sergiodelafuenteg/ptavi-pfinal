@@ -9,6 +9,7 @@ from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 from threading import Thread
 import hashlib
+import time
 
 
 ################INICIO#################
@@ -22,6 +23,25 @@ def Send_music(ip,port,path):
     """Mandar."""
     os.system('./mp32rtp -i {} -p {} < {}'.format(ip, port, path))
 
+class Log():
+    """Class para loggear todo."""
+    def __init__(self, log_path):
+        """Init."""
+        self.log_path = log_path
+        self.f = open (self.log_path, 'a')
+        text = time.strftime('%Y%m%d%H%M%S', time.gmtime(int(time.time()+7200)))
+        text += ' Starting...\r\n'
+        self.f.write(text)
+    def Send(self, ip, port, sip_text):
+        self.f = open (self.log_path, 'a')
+        text = time.strftime('%Y%m%d%H%M%S', time.gmtime(int(time.time()+7200)))
+        text += ' Sent to {}:{}: {}\r\n'.format(ip,port,sip_text)
+        self.f.write(text)
+    def Recv(self, ip, port, sip_text):
+        self.f = open (self.log_path, 'a')
+        text = time.strftime('%Y%m%d%H%M%S', time.gmtime(int(time.time()+7200)))
+        text += ' Received from {}:{}: {}\r\n'.format(ip,port,sip_text)
+        self.f.write(text)
 
 class CONFIGHandler(ContentHandler):
     """Clase para manejar CONFIG."""
@@ -78,10 +98,10 @@ class Configurator(CONFIGHandler):
         """Que metodo usa?."""
         methods = ['REGISTER','INVITE', 'ACK', 'BYE', 'REGISTERLOG']
         PROTOCOL = 'SIP/2.0\r\n'
-        Hilo_listen = Thread(target = Listen, args = (self.ip, self.rtpport))
-        Hilo_Send = Thread(target = Send_music, args = (self.ip,
-                                                       option,
-                                                       self.audio_path))
+        # Hilo_listen = Thread(target = Listen, args = (self.ip, self.rtpport))
+        # Hilo_Send = Thread(target = Send_music, args = (self.ip,
+        #                                                option,
+        #                                                self.audio_path))
 
         if method in methods:
             if method == 'REGISTER':
@@ -111,7 +131,7 @@ class Configurator(CONFIGHandler):
                 PROTOCOL = 'SIP/2.0\r\n\r\n'
                 self.DATA = ' '.join(["ACK", "sip:" + self.login, PROTOCOL])
                 print('senack')
-                Hilo_Send.start()
+                # Hilo_Send.start()
                 # Hilo_listen.start()
 
 
@@ -126,13 +146,16 @@ def checking_nonce(nonce, user):
 def Meth_Handler(method, option):
     """Funcion para manejar cada metodo."""
     config = Configurator(method, option)
+    log = Log(config.log_path)
     if method == 'REGISTER':
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             my_socket.connect((config.PX_SERVER, config.PX_PORT))
             # print(config.DATA)
             my_socket.send(bytes(config.DATA, 'utf-8'))
+            log.Send(config.PX_SERVER, config.PX_PORT, config.DATA)
             data = my_socket.recv(1024)
             data = data.decode('utf-8')
+            log.Recv(config.PX_SERVER, config.PX_PORT, config.DATA)
             cod_answer = data.split(' ')[1]
             if cod_answer == '401':
                 nonce = data.split('"')[1]
@@ -140,24 +163,26 @@ def Meth_Handler(method, option):
                 NONCE = checking_nonce(nonce, config.password)
                 config.check_method('REGISTERLOG',option)
                 my_socket.send(bytes(config.DATA, 'utf-8'))
-                print(config.DATA)
+                log.Send(config.PX_SERVER, config.PX_PORT, config.DATA)
                 data = my_socket.recv(1024)
                 data = data.decode('utf-8')
+                log.Recv(config.PX_SERVER, config.PX_PORT, config.DATA)
     elif method == 'INVITE':
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             my_socket.connect((config.PX_SERVER, config.PX_PORT))
             # print(config.DATA)
             my_socket.send(bytes(config.DATA, 'utf-8'))
-
+            log.Send(config.PX_SERVER, config.PX_PORT, config.DATA)
 
 
     elif method == 'BYE':
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             my_socket.connect((config.PX_SERVER, config.PX_PORT))
             my_socket.send(bytes(config.DATA, 'utf-8'))
+            log.Send(config.PX_SERVER, config.PX_PORT, config.DATA)
             data = my_socket.recv(1024)
             data = data.decode('utf-8')
-    
+            log.Recv(config.PX_SERVER, config.PX_PORT, config.DATA)
 
 #######################MAIN#######################
 
