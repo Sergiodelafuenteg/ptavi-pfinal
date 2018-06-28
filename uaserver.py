@@ -43,22 +43,21 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
     print('popop')
 
-    def check_method(self, method, protocol, sip, option):
+    def check_method(self, method, protocol, sip, all_data):
         """function for check the method."""
         config = Configurator()
         Hilo_listen = Thread(target = Listen, args = (config.ip, config.rtpport))
         Hilo_Send = Thread(target = Send_music, args = (config.ip,
-                                                       config.rtpport,
+                                                       config.otherrtpport,
                                                        config.audio_path))
 
-        methods = ['INVITE', 'ACK', 'BYE']
+        methods = ['INVITE', 'ACK', 'BYE', 'SIP/2.0']
         data_send = ""
         busy = False
         if method in methods:
             if (protocol == 'SIP/2.0') and (sip[0:4] == 'sip:'):
                 if method == 'INVITE':
                     if not busy:
-                        config.otherrtpport = option
                         data_send = ("SIP/2.0 100 Trying\r\n\r\n" +
                                      "SIP/2.0 180 Ringing\r\n\r\n" +
                                      "SIP/2.0 200 OK\r\n\r\n")
@@ -79,6 +78,18 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     busy = True
                     Hilo_listen.start()
                     Hilo_Send.start()
+            elif protocol == 'Trying':
+                option = all_data.split('audio ')
+                option = option[1].split(' ')[0]
+                config.otherrtpport = option
+                Hilo_Send = Thread(target = Send_music, args = (config.ip,
+                                                               config.otherrtpport,
+                                                               config.audio_path))
+                origen = all_data.split('o=')[1]
+                origen = origen.split(' ')[0]
+                Hilo_listen.start()
+                Hilo_Send.start()
+                data_send = ' '.join(["ACK", "sip:" + origen, 'SIP/2.0\r\n\r\n'])
             else:
                 data_send = "SIP/2.0 400 Bad Request\r\n\r\n"
         else:
@@ -90,14 +101,12 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         """handler server."""
         data = self.rfile.read().decode('utf-8')
         print(data)
+        all_data = data
         data = data.split('\r\n')
         print(data)
         metodo, sip_address, protocol = data[0].split(' ')
         print(metodo + ' || ' + sip_address + ' || ' + protocol)
-        if metodo == 'INVITE':
-            self.check_method(metodo, protocol, sip_address,'')
-        else:
-            self.check_method(metodo, protocol, sip_address,'')
+        self.check_method(metodo, protocol, sip_address, all_data)
 
 if __name__ == "__main__":
     # Creamos servidor de eco y escuchamos
