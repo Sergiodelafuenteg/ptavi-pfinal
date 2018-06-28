@@ -7,7 +7,7 @@ import sys
 import os
 from xml.sax import make_parser
 from threading import Thread
-from uaclient import CONFIGHandler#, Configurator
+from uaclient import CONFIGHandler, Log
 
 CONFIG = ""
 ########################INICIO#################
@@ -46,6 +46,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     def check_method(self, method, protocol, sip, all_data):
         """function for check the method."""
         config = Configurator()
+        log = Log(config.log_path)
         Hilo_listen = Thread(target = Listen, args = (config.ip, config.rtpport))
         Hilo_Send = Thread(target = Send_music, args = (config.ip,
                                                        config.otherrtpport,
@@ -95,11 +96,14 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         else:
             data_send = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
         self.wfile.write(bytes(data_send, 'utf-8'))
+        log.Send(config.PX_SERVER, config.PX_PORT, data_send)
         print(data_send)
 
     def handle(self):
         """handler server."""
+        log = Log(config.log_path)
         data = self.rfile.read().decode('utf-8')
+        log.Recv(config.PX_SERVER, config.PX_PORT, data)
         print(data)
         all_data = data
         data = data.split('\r\n')
