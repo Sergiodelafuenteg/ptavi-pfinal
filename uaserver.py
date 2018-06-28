@@ -6,10 +6,17 @@ import socketserver
 import sys
 import os
 from xml.sax import make_parser
+from threading import Thread
 from uaclient import CONFIGHandler#, Configurator
 
 CONFIG = ""
 ########################INICIO#################
+
+def Listen(ip,port):
+    os.system('cvlc rtp://@{}:{} 2> /dev/null'.format(ip,port))
+
+def Send_music(ip,port,path):
+    os.system('mp32rtp -i {} -p {} < {}'.format(ip, port, path))
 
 class Configurator(CONFIGHandler):
 
@@ -31,7 +38,6 @@ class Configurator(CONFIGHandler):
         self.log_path = self.cHandler.attributs['log']['path']
         self.audio_path = self.cHandler.attributs['audio']['path']
 
-
 class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
     print('popop')
@@ -39,6 +45,11 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     def check_method(self, method, protocol, sip):
         """function for check the method."""
         config = Configurator()
+        Hilo_listen = Thread(target = Listen, args = (config.ip, config.rtpport))
+        Hilo_Send = Thread(target = Send_music, args = (config.ip,
+                                                       config.rtpport,
+                                                       config.audio_path))
+
         methods = ['INVITE', 'ACK', 'BYE']
         data_send = ""
         if method in methods:
