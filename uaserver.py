@@ -67,9 +67,11 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                                 'm=audio {} RTP\r\n\r\n'.format(config.rtpport))
                 elif method == 'BYE':
                     data_send = "SIP/2.0 200 OK\r\n\r\n"
+                    os.system("killall Hilo_listen")
+                    os.system("killall Hilo_Send")
                 elif method == 'ACK':
-                    os.system('mp32rtp -i {} -p {} < {}'.format(config.ip,
-                    config.rtpport, config.audio_path))
+                    Hilo_listen.start()
+                    Hilo_Send.start()
             else:
                 data_send = "SIP/2.0 400 Bad Request\r\n\r\n"
         else:
