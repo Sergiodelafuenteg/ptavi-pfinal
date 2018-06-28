@@ -12,8 +12,9 @@ import json
 import time
 import random
 import hashlib
+from uaclient import Log
 
-ATTR_TIME = '%Y-%m-%d %H:%M:%S +0000'
+ATTR_TIME = '%Y-%m-%d %H:%M:%S +7200'
 NONCE = random.randint(0,99999)
 
 
@@ -57,7 +58,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
 
     Users = {}
-    Passwords = {'a':'po'}
+    Passwords = {}
 
 
     def register2json(self):
@@ -85,6 +86,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     def check_method(self, method, protocol, sip, data):
         """function for check the method."""
         methods = ['REGISTER','INVITE', 'ACK', 'BYE']
+        log = Log(log_path)
         data_send = ""
         if method in methods:
             # if 1 == 1:
@@ -108,6 +110,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         else:
             data_send = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
         self.wfile.write(bytes(data_send, 'utf-8'))
+        log.Send(self.client_address[0], self.client_address[1], data_send)
 
     def handle(self):
         """handler server."""
@@ -115,7 +118,9 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             print('nousers')
             self.json2registered()
         self.json2paswords()
+        log = Log(log_path)
         all_data = self.rfile.read().decode('utf-8')
+        log.Recv(self.client_address[0], self.client_address[1], all_data)
         # print('por aki ha pasao: ', all_data)
         data = all_data.split('\r\n')
         data = data[0].split(' ')
@@ -168,7 +173,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
     def Invite(self, all_data, client_address):
         """handle register."""
-
+        log = Log(log_path)
         origen = all_data.split('o=')[1]
         origen = origen.split(' ')[0]
         address_origen = (self.Users[origen]['address'], self.Users[origen]['port'])
@@ -184,9 +189,12 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             print('retasmita a: ',address)
             # print(data)
             my_socket.send(bytes(all_data, 'utf-8'))
+            log.Send(address[0], address[1], all_data)
             data2 = my_socket.recv(1024)
+            log.Recv(address[0], address[1], data2)
             my_socket.connect((address_origen[0], int(address_origen[1])))
             my_socket.send(data2)
+            log.Send(address_origen[0], address_origen[1], data2)
 
         def ACK(self, all_data, client_address):
             data = all_data.split('\r\n')
@@ -200,6 +208,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 print('retasmita a: ',address)
                 # print(data)
                 my_socket.send(bytes(all_data, 'utf-8'))
+                log.Send(address[0], address[1], all_data)
 
 
 if __name__ == "__main__":
@@ -212,6 +221,7 @@ if __name__ == "__main__":
     print(time.time())
     IP = cHandler.attributs['server']['ip']
     PORT = int(cHandler.attributs['server']['puerto'])
+    log_path = cHandler.attributs['log']['path']
     serv = socketserver.UDPServer((IP, PORT), EchoHandler)
     print("Listening...")
     try:
